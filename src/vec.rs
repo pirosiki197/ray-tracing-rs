@@ -12,6 +12,8 @@ pub type Color = Vec3;
 pub struct Vec3(f32x4);
 
 impl Vec3 {
+    pub const ZERO: Vec3 = Vec3(f32x4::ZERO);
+
     pub fn new(e0: f32, e1: f32, e2: f32) -> Self {
         Self(f32x4::new([e0, e1, e2, 0.0]))
     }

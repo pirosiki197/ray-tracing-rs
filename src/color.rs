@@ -2,13 +2,13 @@ use std::io::Write;
 
 use crate::vec::Color;
 
-pub fn write_color(w: &mut impl Write, pixel_color: Color) {
-    write!(
-        w,
-        "{} {} {}\n",
-        (255.999 * pixel_color.x()) as u8,
-        (255.999 * pixel_color.y()) as u8,
-        (255.999 * pixel_color.z()) as u8
-    )
-    .unwrap();
+pub fn write_color(w: &mut impl Write, mut pixel_color: Color, samples_per_pixel: i32) {
+    let scale = 1.0 / samples_per_pixel as f32;
+    pixel_color *= scale;
+
+    let r = 256.0 * pixel_color.x().clamp(0.0, 0.999);
+    let g = 256.0 * pixel_color.y().clamp(0.0, 0.999);
+    let b = 256.0 * pixel_color.z().clamp(0.0, 0.999);
+
+    write!(w, "{} {} {}\n", r as u8, g as u8, b as u8).unwrap();
 }
