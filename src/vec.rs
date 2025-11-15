@@ -52,6 +52,19 @@ impl Vec3 {
         Vec3::new(r * a.cos(), r * a.sin(), z)
     }
 
+    pub fn radom_in_unit_disk() -> Self {
+        loop {
+            let p = Vec3::new(
+                rand::random_range(-1.0..1.0),
+                rand::random_range(-1.0..1.0),
+                0.0,
+            );
+            if p.length_squared() < 1.0 {
+                return p;
+            }
+        }
+    }
+
     pub fn x(&self) -> f32 {
         self.0.as_array()[0]
     }
