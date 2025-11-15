@@ -1,6 +1,7 @@
 use core::f32;
-use std::rc::Rc;
+use std::sync::Arc;
 
+use indicatif::{ParallelProgressIterator, ProgressBar};
 use rand::Rng;
 use ray_tracing::{
     camera::Camera,
@@ -11,6 +12,7 @@ use ray_tracing::{
     sphere::Sphere,
     vec::{Color, Point3, Vec3},
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 fn ray_color(ray: &Ray, world: &impl Hittable, depth: i32) -> Color {
     if depth <= 0 {
@@ -30,8 +32,8 @@ fn ray_color(ray: &Ray, world: &impl Hittable, depth: i32) -> Color {
 
 fn random_scene() -> HittableList {
     let mut world = HittableList::new();
-    let ground_material = Rc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
-    world.add(Rc::new(Sphere::new(
+    let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    world.add(Arc::new(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         ground_material,
@@ -53,43 +55,43 @@ fn random_scene() -> HittableList {
 
             if choose_mat < 0.8 {
                 let albedo = Color::random() * Color::random();
-                world.add(Rc::new(Sphere::new(
+                world.add(Arc::new(Sphere::new(
                     center,
                     0.2,
-                    Rc::new(Lambertian::new(albedo)),
+                    Arc::new(Lambertian::new(albedo)),
                 )));
             } else if choose_mat < 0.95 {
                 let albedo = Color::random_range(0.5..1.0);
                 let fuzz = rng.random_range(0.0..0.5);
-                world.add(Rc::new(Sphere::new(
+                world.add(Arc::new(Sphere::new(
                     center,
                     0.2,
-                    Rc::new(Metal::new(albedo, fuzz)),
+                    Arc::new(Metal::new(albedo, fuzz)),
                 )));
             } else {
-                world.add(Rc::new(Sphere::new(
+                world.add(Arc::new(Sphere::new(
                     center,
                     0.2,
-                    Rc::new(Dielectric::new(1.5)),
+                    Arc::new(Dielectric::new(1.5)),
                 )))
             }
         }
     }
 
-    let material1 = Rc::new(Dielectric::new(1.5));
-    world.add(Rc::new(Sphere::new(
+    let material1 = Arc::new(Dielectric::new(1.5));
+    world.add(Arc::new(Sphere::new(
         Point3::new(0.0, 1.0, 0.0),
         1.0,
         material1,
     )));
-    let material2 = Rc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
-    world.add(Rc::new(Sphere::new(
+    let material2 = Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    world.add(Arc::new(Sphere::new(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
         material2,
     )));
-    let material3 = Rc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
-    world.add(Rc::new(Sphere::new(
+    let material3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    world.add(Arc::new(Sphere::new(
         Point3::new(4.0, 1.0, 0.0),
         1.0,
         material3,
@@ -102,12 +104,10 @@ fn main() {
     let mut stdout = std::io::stdout();
 
     let aspect_ration = 16.0 / 9.0;
-    let image_width = 384;
+    let image_width = 768;
     let image_height = (image_width as f32 / aspect_ration) as i32;
     let samples_per_pixel = 100;
     let max_depth = 50;
-
-    print!("P3\n{} {}\n255\n", image_width, image_height);
 
     let lookfrom = Point3::new(13.0, 2.0, 6.0);
     let lookat = Point3::new(0.0, 0.0, 0.0);
@@ -123,11 +123,18 @@ fn main() {
 
     let world = random_scene();
 
-    let mut rng = rand::rng();
+    let indices: Vec<(i32, i32)> = (0..image_height)
+        .rev()
+        .flat_map(|j| (0..image_width).map(move |i| (j, i)))
+        .collect();
 
-    for j in (0..image_height).rev() {
-        eprint!("\rScanlines remaining: {} ", j);
-        for i in 0..image_width {
+    let pb = ProgressBar::new(indices.len() as u64);
+
+    let pixels: Vec<Color> = indices
+        .into_par_iter()
+        .progress_with(pb)
+        .map(|(j, i)| {
+            let mut rng = rand::rng();
             let mut pixel_color = Color::ZERO;
             for _ in 0..samples_per_pixel {
                 let u = (i as f32 + rng.random_range(0.0..1.0)) / (image_width - 1) as f32;
@@ -135,8 +142,13 @@ fn main() {
                 let ray = camera.get_ray(u, v);
                 pixel_color += ray_color(&ray, &world, max_depth);
             }
-            color::write_color(&mut stdout, pixel_color, samples_per_pixel);
-        }
+            pixel_color
+        })
+        .collect();
+
+    print!("P3\n{} {}\n255\n", image_width, image_height);
+    for pixel_color in pixels {
+        color::write_color(&mut stdout, pixel_color, samples_per_pixel);
     }
     eprintln!("\nDone.");
 }
