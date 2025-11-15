@@ -1,8 +1,10 @@
+use core::f32;
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Range, Sub},
 };
 
+use rand::Rng;
 use wide::f32x4;
 
 pub type Point3 = Vec3;
@@ -16,6 +18,38 @@ impl Vec3 {
 
     pub fn new(e0: f32, e1: f32, e2: f32) -> Self {
         Self(f32x4::new([e0, e1, e2, 0.0]))
+    }
+
+    pub fn random() -> Self {
+        let mut rng = rand::rng();
+        Self(f32x4::new([rng.random(), rng.random(), rng.random(), 0.0]))
+    }
+
+    pub fn random_range(range: Range<f32>) -> Self {
+        let mut rng = rand::rng();
+        Self(f32x4::new([
+            rng.random_range(range.clone()),
+            rng.random_range(range.clone()),
+            rng.random_range(range.clone()),
+            0.0,
+        ]))
+    }
+
+    pub fn radom_in_unit_sphere() -> Self {
+        loop {
+            let v = Vec3::random_range(-1.0..1.0);
+            if v.length_squared() < 1.0 {
+                return v;
+            }
+        }
+    }
+
+    pub fn random_unit() -> Self {
+        let mut rng = rand::rng();
+        let a: f32 = rng.random_range(0.0..2.0 * f32::consts::PI);
+        let z: f32 = rng.random_range(-1.0..1.0);
+        let r: f32 = (1.0 - z * z).sqrt();
+        Vec3::new(r * a.cos(), r * a.sin(), z)
     }
 
     pub fn x(&self) -> f32 {
@@ -41,6 +75,21 @@ impl Vec3 {
         let b_yzx = f32x4::new([rhs.y(), rhs.z(), rhs.x(), 0.0]);
         let b_zxy = f32x4::new([rhs.z(), rhs.x(), rhs.y(), 0.0]);
         Vec3(a_yzx * b_zxy - a_zxy * b_yzx)
+    }
+
+    pub fn reflect(&self, n: &Self) -> Self {
+        *self - 2.0 * self.dot(n) * *n
+    }
+
+    pub fn refract(&self, n: &Self, etai_over_etat: f32) -> Self {
+        let cos_theta = -self.dot(n);
+        let r_out_parallel = etai_over_etat * (*self + cos_theta * *n);
+        let r_out_perp = -f32::sqrt(1.0 - r_out_parallel.length_squared()) * *n;
+        r_out_parallel + r_out_perp
+    }
+
+    pub fn sqrt(&self) -> Self {
+        Self(self.0.sqrt())
     }
 
     pub fn normalized(&self) -> Self {

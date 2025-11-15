@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
+    material::Material,
     ray::Ray,
     vec::{Point3, Vec3},
 };
@@ -8,22 +9,42 @@ use crate::{
 pub struct HitRecord {
     p: Point3,
     normal: Vec3,
+    material: Rc<dyn Material>,
     t: f32,
     front_face: bool,
 }
 
 impl HitRecord {
-    pub fn new(p: Point3, normal: Vec3, t: f32, front_face: bool) -> Self {
+    pub fn new(
+        p: Point3,
+        normal: Vec3,
+        material: Rc<dyn Material>,
+        t: f32,
+        front_face: bool,
+    ) -> Self {
         HitRecord {
             p,
             normal,
+            material,
             t,
             front_face,
         }
     }
 
+    pub fn point(&self) -> &Point3 {
+        &self.p
+    }
+
     pub fn normal(&self) -> &Vec3 {
         &self.normal
+    }
+
+    pub fn material(&self) -> Rc<dyn Material> {
+        self.material.clone()
+    }
+
+    pub fn front_face(&self) -> bool {
+        self.front_face
     }
 }
 
