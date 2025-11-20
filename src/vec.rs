@@ -77,6 +77,10 @@ impl Vec3 {
         self.0.as_array()[2]
     }
 
+    pub fn as_array(&self) -> [f32; 3] {
+        self.0.as_array()[..3].try_into().unwrap()
+    }
+
     pub fn dot(&self, rhs: &Self) -> f32 {
         let muled = *self * *rhs;
         muled.x() + muled.y() + muled.z()

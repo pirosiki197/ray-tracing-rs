@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    aabb::AABB,
     material::Material,
     ray::Ray,
     vec::{Point3, Vec3},
@@ -10,23 +11,15 @@ pub struct HitRecord {
     p: Point3,
     normal: Vec3,
     material: Arc<dyn Material>,
-    t: f32,
     front_face: bool,
 }
 
 impl HitRecord {
-    pub fn new(
-        p: Point3,
-        normal: Vec3,
-        material: Arc<dyn Material>,
-        t: f32,
-        front_face: bool,
-    ) -> Self {
+    pub fn new(p: Point3, normal: Vec3, material: Arc<dyn Material>, front_face: bool) -> Self {
         HitRecord {
             p,
             normal,
             material,
-            t,
             front_face,
         }
     }
@@ -49,7 +42,10 @@ impl HitRecord {
 }
 
 pub trait Hittable: Send + Sync {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)>;
+    fn bounding_box(&self) -> Option<AABB> {
+        None
+    }
 }
 
 pub struct HittableList {
@@ -67,17 +63,37 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let (_, hit_record) =
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
+        let (t, hit_record) =
             self.objects
                 .iter()
                 .fold((t_max, None), |(closest_t, base_hit), obj| {
-                    if let Some(rec) = obj.hit(&ray, t_min, closest_t) {
-                        (rec.t, Some(rec))
+                    if let Some((t, rec)) = obj.hit(&ray, t_min, closest_t) {
+                        (t, Some(rec))
                     } else {
                         (closest_t, base_hit)
                     }
                 });
-        hit_record
+        hit_record.map(|rec| (t, rec))
+    }
+
+    fn bounding_box(&self) -> Option<AABB> {
+        if self.objects.is_empty() {
+            return None;
+        }
+
+        let mut first_box = true;
+        let mut res = AABB::new(Vec3::ZERO, Vec3::ZERO);
+        for object in &self.objects {
+            let bbox = object.bounding_box()?;
+            res = if first_box {
+                bbox
+            } else {
+                AABB::surrounding_box(&res, &bbox)
+            };
+            first_box = false;
+        }
+
+        Some(res)
     }
 }

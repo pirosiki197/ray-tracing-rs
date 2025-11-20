@@ -4,6 +4,7 @@ use std::sync::Arc;
 use indicatif::{ParallelProgressIterator, ProgressBar};
 use rand::Rng;
 use ray_tracing::{
+    bvh::BVH,
     camera::Camera,
     color,
     hittable::{Hittable, HittableList},
@@ -19,7 +20,7 @@ fn ray_color(ray: &Ray, world: &impl Hittable, depth: i32) -> Color {
         return Color::ZERO;
     }
 
-    if let Some(rec) = world.hit(&ray, 0.001, f32::INFINITY) {
+    if let Some((_, rec)) = world.hit(&ray, 0.001, f32::INFINITY) {
         if let Some((attenuation, scattered)) = rec.material().scatter(&ray, &rec) {
             return attenuation * ray_color(&scattered, world, depth - 1);
         }
@@ -39,6 +40,8 @@ fn random_scene() -> HittableList {
         ground_material,
     )));
 
+    let mut spheres: Vec<Arc<dyn Hittable>> = Vec::with_capacity(22 * 22);
+
     let mut rng = rand::rng();
     for a in -11..11 {
         for b in -11..11 {
@@ -55,7 +58,7 @@ fn random_scene() -> HittableList {
 
             if choose_mat < 0.8 {
                 let albedo = Color::random() * Color::random();
-                world.add(Arc::new(Sphere::new(
+                spheres.push(Arc::new(Sphere::new(
                     center,
                     0.2,
                     Arc::new(Lambertian::new(albedo)),
@@ -63,13 +66,13 @@ fn random_scene() -> HittableList {
             } else if choose_mat < 0.95 {
                 let albedo = Color::random_range(0.5..1.0);
                 let fuzz = rng.random_range(0.0..0.5);
-                world.add(Arc::new(Sphere::new(
+                spheres.push(Arc::new(Sphere::new(
                     center,
                     0.2,
                     Arc::new(Metal::new(albedo, fuzz)),
                 )));
             } else {
-                world.add(Arc::new(Sphere::new(
+                spheres.push(Arc::new(Sphere::new(
                     center,
                     0.2,
                     Arc::new(Dielectric::new(1.5)),
@@ -77,6 +80,8 @@ fn random_scene() -> HittableList {
             }
         }
     }
+
+    world.add(Arc::new(BVH::new(spheres)));
 
     let material1 = Arc::new(Dielectric::new(1.5));
     world.add(Arc::new(Sphere::new(
@@ -104,7 +109,7 @@ fn main() {
     let mut stdout = std::io::stdout();
 
     let aspect_ration = 16.0 / 9.0;
-    let image_width = 768;
+    let image_width = 640;
     let image_height = (image_width as f32 / aspect_ration) as i32;
     let samples_per_pixel = 100;
     let max_depth = 50;
