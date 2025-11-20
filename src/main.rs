@@ -13,7 +13,10 @@ use ray_tracing::{
     sphere::Sphere,
     vec::{Color, Point3, Vec3},
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::{
+    iter::{IndexedParallelIterator, ParallelIterator},
+    slice::ParallelSliceMut,
+};
 
 fn ray_color(ray: &Ray, world: &impl Hittable, depth: i32) -> Color {
     if depth <= 0 {
@@ -128,28 +131,27 @@ fn main() {
 
     let world = random_scene();
 
-    let indices: Vec<(i32, i32)> = (0..image_height)
-        .rev()
-        .flat_map(|j| (0..image_width).map(move |i| (j, i)))
-        .collect();
+    let pb = ProgressBar::new(image_height as u64);
 
-    let pb = ProgressBar::new(indices.len() as u64);
-
-    let pixels: Vec<Color> = indices
-        .into_par_iter()
+    let mut pixels = vec![Color::ZERO; (image_width * image_height) as usize];
+    pixels
+        .par_chunks_mut(image_width as usize)
+        .enumerate()
         .progress_with(pb)
-        .map(|(j, i)| {
+        .for_each(|(row_idx, row_slice)| {
             let mut rng = rand::rng();
-            let mut pixel_color = Color::ZERO;
-            for _ in 0..samples_per_pixel {
-                let u = (i as f32 + rng.random_range(0.0..1.0)) / (image_width - 1) as f32;
-                let v = (j as f32 + rng.random_range(0.0..1.0)) / (image_height - 1) as f32;
-                let ray = camera.get_ray(u, v);
-                pixel_color += ray_color(&ray, &world, max_depth);
+            let j = image_height - 1 - row_idx as i32;
+            for (i, pixel) in row_slice.iter_mut().enumerate() {
+                let mut pixel_color = Color::ZERO;
+                for _ in 0..samples_per_pixel {
+                    let u = (i as f32 + rng.random_range(0.0..1.0)) / (image_width - 1) as f32;
+                    let v = (j as f32 + rng.random_range(0.0..1.0)) / (image_height - 1) as f32;
+                    let ray = camera.get_ray(u, v);
+                    pixel_color += ray_color(&ray, &world, max_depth);
+                }
+                *pixel = pixel_color;
             }
-            pixel_color
-        })
-        .collect();
+        });
 
     print!("P3\n{} {}\n255\n", image_width, image_height);
     for pixel_color in pixels {
