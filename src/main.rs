@@ -48,11 +48,11 @@ fn random_scene() -> HittableList {
     let mut rng = rand::rng();
     for a in -11..11 {
         for b in -11..11 {
-            let choose_mat = rng.random_range(0.0..1.0);
+            let choose_mat = rng.random::<f32>();
             let center = Point3::new(
-                a as f32 + 0.9 * rng.random_range(0.0..1.0),
+                a as f32 + 0.9 * rng.random::<f32>(),
                 0.2,
-                b as f32 + 0.9 * rng.random_range(0.0..1.0),
+                b as f32 + 0.9 * rng.random::<f32>(),
             );
 
             if (center - Vec3::new(4.0, 0.2, 0.0)).length() < 0.9 {
@@ -144,8 +144,8 @@ fn main() {
             for (i, pixel) in row_slice.iter_mut().enumerate() {
                 let mut pixel_color = Color::ZERO;
                 for _ in 0..samples_per_pixel {
-                    let u = (i as f32 + rng.random_range(0.0..1.0)) / (image_width - 1) as f32;
-                    let v = (j as f32 + rng.random_range(0.0..1.0)) / (image_height - 1) as f32;
+                    let u = (i as f32 + rng.random::<f32>()) / (image_width - 1) as f32;
+                    let v = (j as f32 + rng.random::<f32>()) / (image_height - 1) as f32;
                     let ray = camera.get_ray(u, v);
                     pixel_color += ray_color(&ray, &world, max_depth);
                 }

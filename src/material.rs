@@ -80,7 +80,7 @@ impl Material for Dielectric {
         }
 
         let reflect_prob = schlick(cos_theta, etai_over_etat);
-        if rand::random_range(0.0..1.0) < reflect_prob {
+        if rand::random::<f32>() < reflect_prob {
             let reflected = unit_direction.reflect(rec.normal());
             let scattered = Ray::new(*rec.point(), reflected);
             return Some((attenuation, scattered));
