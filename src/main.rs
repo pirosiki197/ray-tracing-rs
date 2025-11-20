@@ -1,6 +1,6 @@
-use core::f32;
 use std::sync::Arc;
 
+use glam::Vec3A;
 use indicatif::{ParallelProgressIterator, ProgressBar};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use ray_tracing::{
@@ -11,7 +11,7 @@ use ray_tracing::{
     material::{Dielectric, Lambertian, Metal},
     ray::Ray,
     sphere::Sphere,
-    vec::{Color, Point3, Vec3},
+    vec::{Color, Point3, Vec3Ext},
 };
 use rayon::{
     iter::{IndexedParallelIterator, ParallelIterator},
@@ -29,8 +29,8 @@ fn ray_color(ray: &Ray, world: &HittableList, depth: i32) -> Color {
         }
     }
 
-    let unit_direction = ray.direction().normalized();
-    let t = 0.5 * (unit_direction.y() + 1.0);
+    let unit_direction = ray.direction().normalize();
+    let t = 0.5 * (unit_direction.y + 1.0);
     (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
 }
 
@@ -55,12 +55,12 @@ fn random_scene() -> HittableList {
                 b as f32 + 0.9 * rng.random::<f32>(),
             );
 
-            if (center - Vec3::new(4.0, 0.2, 0.0)).length() < 0.9 {
+            if (center - Vec3A::new(4.0, 0.2, 0.0)).length() < 0.9 {
                 continue;
             }
 
-            if choose_mat < 0.8 {
-                let albedo = Color::random() * Color::random();
+            if choose_mat < 0.7 {
+                let albedo = rng.random::<Color>() * rng.random::<Color>();
                 spheres.push(Geometry::Sphere(Sphere::new(
                     center,
                     0.2,
@@ -92,13 +92,13 @@ fn random_scene() -> HittableList {
         1.0,
         material1,
     )));
-    let material2 = Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+    let material2 = Arc::new(Lambertian::new(Color::new(0.25, 0.875, 0.8125)));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
         material2,
     )));
-    let material3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    let material3 = Arc::new(Metal::new(Color::new(0.75, 0.75, 0.75), 0.0));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(4.0, 1.0, 0.0),
         1.0,
@@ -112,9 +112,9 @@ fn main() {
     let mut stdout = std::io::stdout();
 
     let aspect_ration = 16.0 / 9.0;
-    let image_width = 640;
+    let image_width = 1280;
     let image_height = (image_width as f32 / aspect_ration) as i32;
-    let samples_per_pixel = 100;
+    let samples_per_pixel = 2000;
     let max_depth = 50;
 
     let lookfrom = Point3::new(13.0, 2.0, 6.0);
@@ -122,7 +122,7 @@ fn main() {
     let camera = Camera::new(
         lookfrom,
         lookat,
-        Vec3::new(0.0, 1.0, 0.0),
+        Vec3A::new(0.0, 1.0, 0.0),
         120.0,
         aspect_ration,
         0.1,

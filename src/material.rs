@@ -1,7 +1,9 @@
+use glam::Vec3A;
+
 use crate::{
     hittable::HitRecord,
     ray::Ray,
-    vec::{Color, Vec3},
+    vec::{Color, Vec3Ext},
 };
 
 pub trait Material: Send + Sync {
@@ -20,8 +22,8 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
-        let scatter_direction = *rec.normal() + Vec3::random_unit();
-        let scattered = Ray::new(*rec.point(), scatter_direction);
+        let scatter_direction = rec.normal() + Vec3A::random_unit();
+        let scattered = Ray::new(rec.point(), scatter_direction);
         Some((self.albedo, scattered))
     }
 }
@@ -44,8 +46,8 @@ impl Material for Metal {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let reflected = r_in.direction().reflect(rec.normal());
         let scattered = Ray::new(
-            *rec.point(),
-            reflected + self.fuzz * Vec3::radom_in_unit_sphere(),
+            rec.point(),
+            reflected + self.fuzz * Vec3A::radom_in_unit_sphere(),
         );
         Some((self.albedo, scattered))
     }
@@ -70,24 +72,24 @@ impl Material for Dielectric {
             self.ref_idx
         };
 
-        let unit_direction = r_in.direction().normalized();
+        let unit_direction = r_in.direction().normalize();
         let cos_theta = -unit_direction.dot(rec.normal()).min(1.0);
         let sin_theta = f32::sqrt(1.0 - cos_theta * cos_theta);
         if etai_over_etat * sin_theta > 1.0 {
             let reflected = unit_direction.reflect(rec.normal());
-            let scattered = Ray::new(*rec.point(), reflected);
+            let scattered = Ray::new(rec.point(), reflected);
             return Some((attenuation, scattered));
         }
 
         let reflect_prob = schlick(cos_theta, etai_over_etat);
         if rand::random::<f32>() < reflect_prob {
             let reflected = unit_direction.reflect(rec.normal());
-            let scattered = Ray::new(*rec.point(), reflected);
+            let scattered = Ray::new(rec.point(), reflected);
             return Some((attenuation, scattered));
         }
 
         let refracted = unit_direction.refract(rec.normal(), etai_over_etat);
-        let scattered = Ray::new(*rec.point(), refracted);
+        let scattered = Ray::new(rec.point(), refracted);
         Some((attenuation, scattered))
     }
 }

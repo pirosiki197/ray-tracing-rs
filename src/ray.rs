@@ -1,12 +1,14 @@
-use crate::vec::{Point3, Vec3};
+use glam::Vec3A;
+
+use crate::vec::Point3;
 
 pub struct Ray {
     orig: Point3,
-    dir: Vec3,
+    dir: Vec3A,
 }
 
 impl Ray {
-    pub fn new(origin: Point3, direction: Vec3) -> Self {
+    pub fn new(origin: Point3, direction: Vec3A) -> Self {
         Self {
             orig: origin,
             dir: direction,
@@ -17,8 +19,8 @@ impl Ray {
         self.orig + t * self.dir
     }
 
-    pub fn direction(&self) -> &Vec3 {
-        &self.dir
+    pub fn direction(&self) -> Vec3A {
+        self.dir
     }
 
     pub fn origin(&self) -> &Point3 {

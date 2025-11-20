@@ -1,23 +1,20 @@
 use std::sync::Arc;
 
+use glam::Vec3A;
+
 use crate::{
-    aabb::AABB,
-    bvh::BVHBranch,
-    material::Material,
-    ray::Ray,
-    sphere::Sphere,
-    vec::{Point3, Vec3},
+    aabb::AABB, bvh::BVHBranch, material::Material, ray::Ray, sphere::Sphere, vec::Point3,
 };
 
 pub struct HitRecord {
     p: Point3,
-    normal: Vec3,
+    normal: Vec3A,
     material: Arc<dyn Material>,
     front_face: bool,
 }
 
 impl HitRecord {
-    pub fn new(p: Point3, normal: Vec3, material: Arc<dyn Material>, front_face: bool) -> Self {
+    pub fn new(p: Point3, normal: Vec3A, material: Arc<dyn Material>, front_face: bool) -> Self {
         HitRecord {
             p,
             normal,
@@ -26,12 +23,12 @@ impl HitRecord {
         }
     }
 
-    pub fn point(&self) -> &Point3 {
-        &self.p
+    pub fn point(&self) -> Point3 {
+        self.p
     }
 
-    pub fn normal(&self) -> &Vec3 {
-        &self.normal
+    pub fn normal(&self) -> Vec3A {
+        self.normal
     }
 
     pub fn material(&self) -> Arc<dyn Material> {
@@ -76,7 +73,7 @@ impl HittableList {
         }
 
         let mut first_box = true;
-        let mut res = AABB::new(Vec3::ZERO, Vec3::ZERO);
+        let mut res = AABB::new(Vec3A::ZERO, Vec3A::ZERO);
         for object in &self.objects {
             let bbox = object.bounding_box()?;
             res = if first_box {

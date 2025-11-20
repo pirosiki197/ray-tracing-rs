@@ -1,12 +1,8 @@
 use std::sync::Arc;
 
-use crate::{
-    aabb::AABB,
-    hittable::HitRecord,
-    material::Material,
-    ray::Ray,
-    vec::{Point3, Vec3},
-};
+use glam::Vec3A;
+
+use crate::{aabb::AABB, hittable::HitRecord, material::Material, ray::Ray, vec::Point3};
 
 pub struct Sphere {
     center: Point3,
@@ -50,8 +46,8 @@ impl Sphere {
 
     pub fn bounding_box(&self) -> Option<AABB> {
         Some(AABB::new(
-            self.center - Vec3::new(self.radius, self.radius, self.radius),
-            self.center + Vec3::new(self.radius, self.radius, self.radius),
+            self.center - Vec3A::new(self.radius, self.radius, self.radius),
+            self.center + Vec3A::new(self.radius, self.radius, self.radius),
         ))
     }
 }
@@ -60,7 +56,7 @@ impl Sphere {
     fn hit_record(&self, ray: &Ray, t: f32) -> HitRecord {
         let p = ray.at(t);
         let outward_normal = (p - self.center) / self.radius;
-        let front_face = ray.direction().dot(&outward_normal) < 0.0;
+        let front_face = ray.direction().dot(outward_normal) < 0.0;
         HitRecord::new(
             p,
             if front_face {

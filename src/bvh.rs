@@ -90,5 +90,5 @@ fn box_compare(a: &Geometry, b: &Geometry, axis: usize) -> std::cmp::Ordering {
     let box_a = a.bounding_box().unwrap();
     let box_b = b.bounding_box().unwrap();
 
-    box_a.min().as_array()[axis].total_cmp(&box_b.min().as_array()[axis])
+    box_a.min().to_array()[axis].total_cmp(&box_b.min().to_array()[axis])
 }
