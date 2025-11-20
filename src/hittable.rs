@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use crate::{
     aabb::AABB,
+    bvh::BVHBranch,
     material::Material,
     ray::Ray,
+    sphere::Sphere,
     vec::{Point3, Vec3},
 };
 
@@ -41,15 +43,8 @@ impl HitRecord {
     }
 }
 
-pub trait Hittable: Send + Sync {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)>;
-    fn bounding_box(&self) -> Option<AABB> {
-        None
-    }
-}
-
 pub struct HittableList {
-    objects: Vec<Arc<dyn Hittable>>,
+    objects: Vec<Geometry>,
 }
 
 impl HittableList {
@@ -57,13 +52,11 @@ impl HittableList {
         HittableList { objects: vec![] }
     }
 
-    pub fn add(&mut self, obj: Arc<dyn Hittable>) {
+    pub fn add(&mut self, obj: Geometry) {
         self.objects.push(obj);
     }
-}
 
-impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
+    pub fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
         let (t, hit_record) =
             self.objects
                 .iter()
@@ -77,7 +70,7 @@ impl Hittable for HittableList {
         hit_record.map(|rec| (t, rec))
     }
 
-    fn bounding_box(&self) -> Option<AABB> {
+    pub fn bounding_box(&self) -> Option<AABB> {
         if self.objects.is_empty() {
             return None;
         }
@@ -95,5 +88,26 @@ impl Hittable for HittableList {
         }
 
         Some(res)
+    }
+}
+
+pub enum Geometry {
+    Sphere(Sphere),
+    Branch(Box<BVHBranch>),
+}
+
+impl Geometry {
+    pub fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
+        match self {
+            Geometry::Sphere(s) => s.hit(ray, t_min, t_max),
+            Geometry::Branch(n) => n.hit(ray, t_min, t_max),
+        }
+    }
+
+    pub fn bounding_box(&self) -> Option<AABB> {
+        match self {
+            Geometry::Sphere(s) => s.bounding_box(),
+            Geometry::Branch(n) => n.bounding_box(),
+        }
     }
 }

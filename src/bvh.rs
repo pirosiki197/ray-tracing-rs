@@ -1,39 +1,18 @@
 use crate::{
     aabb::AABB,
-    hittable::{HitRecord, Hittable},
+    hittable::{Geometry, HitRecord},
     ray::Ray,
 };
-use std::{cmp::Ordering, sync::Arc};
+use std::cmp::Ordering;
 
-pub struct BVH {
-    root: Arc<BVHNode>,
-}
-
-impl BVH {
-    pub fn new(objects: Vec<Arc<dyn Hittable>>) -> Self {
-        let root = Arc::new(BVHNode::new(objects));
-        Self { root }
-    }
-}
-
-impl Hittable for BVH {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
-        self.root.hit(&ray, t_min, t_max)
-    }
-
-    fn bounding_box(&self) -> Option<AABB> {
-        Some(self.root.bx.clone())
-    }
-}
-
-pub struct BVHNode {
-    left: Arc<dyn Hittable>,
-    right: Arc<dyn Hittable>,
+pub struct BVHBranch {
+    left: Geometry,
+    right: Geometry,
     bx: AABB,
 }
 
-impl BVHNode {
-    pub fn new(mut objects: Vec<Arc<dyn Hittable>>) -> Self {
+impl BVHBranch {
+    pub fn build(mut objects: Vec<Geometry>) -> Geometry {
         let axis = rand::random_range(0..=2);
 
         let comparator = match axis {
@@ -43,81 +22,71 @@ impl BVHNode {
             _ => unreachable!(),
         };
 
-        let left: Arc<dyn Hittable>;
-        let right: Arc<dyn Hittable>;
         match objects.len() {
-            1 => {
-                left = objects[0].clone();
-                right = objects[0].clone();
-            }
+            1 => objects.pop().unwrap(),
             2 => {
-                let first = objects[0].clone();
-                let second = objects[1].clone();
-                match comparator(first.as_ref(), second.as_ref()) {
-                    Ordering::Less | Ordering::Equal => {
-                        left = first;
-                        right = second;
-                    }
-                    Ordering::Greater => {
-                        left = second;
-                        right = first;
-                    }
+                let second = objects.pop().unwrap();
+                let first = objects.pop().unwrap();
+                match comparator(&first, &second) {
+                    Ordering::Less | Ordering::Equal => BVHBranch::create_branch(first, second),
+                    Ordering::Greater => BVHBranch::create_branch(second, first),
                 }
             }
             _ => {
-                objects.sort_by(|a, b| comparator(a.as_ref(), b.as_ref()));
+                objects.sort_by(|a, b| comparator(a, b));
                 let mid = objects.len() / 2;
                 let first_half = objects.split_off(mid);
                 let second_half = objects;
-                left = Arc::new(BVHNode::new(first_half));
-                right = Arc::new(BVHNode::new(second_half));
+                BVHBranch::create_branch(
+                    BVHBranch::build(first_half),
+                    BVHBranch::build(second_half),
+                )
             }
         }
+    }
+
+    fn create_branch(left: Geometry, right: Geometry) -> Geometry {
         let box_left = left.bounding_box().unwrap();
         let box_right = right.bounding_box().unwrap();
 
-        Self {
-            left: left,
-            right: right,
+        Geometry::Branch(Box::new(Self {
+            left,
+            right,
             bx: AABB::surrounding_box(&box_left, &box_right),
-        }
+        }))
     }
-}
 
-impl Hittable for BVHNode {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
-        if !self.bx.hit(&ray, t_min, t_max) {
+    pub fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
+        if !self.bx.hit(ray, t_min, t_max) {
             return None;
         }
 
-        let left_rec = self.left.hit(&ray, t_min, t_max);
-        let right_rec = self.right.hit(
-            &ray,
-            t_min,
-            left_rec.as_ref().map(|(t, _)| *t).unwrap_or(t_max),
-        );
+        let hit_left = self.left.hit(ray, t_min, t_max);
 
-        right_rec.or(left_rec)
+        let t_max_for_right = hit_left.as_ref().map_or(t_max, |(t, _)| *t);
+        let hit_right = self.right.hit(ray, t_min, t_max_for_right);
+
+        hit_right.or(hit_left)
     }
 
-    fn bounding_box(&self) -> Option<AABB> {
+    pub fn bounding_box(&self) -> Option<AABB> {
         Some(self.bx.clone())
     }
 }
 
-fn box_x_compare(a: &dyn Hittable, b: &dyn Hittable) -> std::cmp::Ordering {
+fn box_x_compare(a: &Geometry, b: &Geometry) -> std::cmp::Ordering {
     box_compare(a, b, 0)
 }
 
-fn box_y_compare(a: &dyn Hittable, b: &dyn Hittable) -> std::cmp::Ordering {
+fn box_y_compare(a: &Geometry, b: &Geometry) -> std::cmp::Ordering {
     box_compare(a, b, 1)
 }
 
-fn box_z_compare(a: &dyn Hittable, b: &dyn Hittable) -> std::cmp::Ordering {
+fn box_z_compare(a: &Geometry, b: &Geometry) -> std::cmp::Ordering {
     box_compare(a, b, 2)
 }
 
-fn box_compare(a: &dyn Hittable, b: &dyn Hittable, axis: usize) -> std::cmp::Ordering {
+fn box_compare(a: &Geometry, b: &Geometry, axis: usize) -> std::cmp::Ordering {
     let box_a = a.bounding_box().unwrap();
     let box_b = b.bounding_box().unwrap();
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     aabb::AABB,
-    hittable::{HitRecord, Hittable},
+    hittable::HitRecord,
     material::Material,
     ray::Ray,
     vec::{Point3, Vec3},
@@ -22,10 +22,8 @@ impl Sphere {
             material,
         }
     }
-}
 
-impl Hittable for Sphere {
-    fn hit(&self, ray: &crate::ray::Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
+    pub fn hit(&self, ray: &crate::ray::Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
         let oc = *ray.origin() - self.center;
         let a = ray.direction().length_squared();
         let half_b = oc.dot(ray.direction());
@@ -50,7 +48,7 @@ impl Hittable for Sphere {
         None
     }
 
-    fn bounding_box(&self) -> Option<AABB> {
+    pub fn bounding_box(&self) -> Option<AABB> {
         Some(AABB::new(
             self.center - Vec3::new(self.radius, self.radius, self.radius),
             self.center + Vec3::new(self.radius, self.radius, self.radius),
