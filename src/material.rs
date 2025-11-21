@@ -1,21 +1,30 @@
+use std::sync::Arc;
+
 use glam::Vec3A;
 
 use crate::{
     hittable::HitRecord,
     ray::Ray,
-    vec::{Color, Vec3Ext},
+    texture::Texture,
+    vec::{Color, Point3, Vec3Ext},
 };
 
 pub trait Material: Send + Sync {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
+    fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
+        _ = u;
+        _ = v;
+        _ = p;
+        Color::ZERO
+    }
 }
 
 pub struct Lambertian {
-    albedo: Color,
+    albedo: Arc<dyn Texture>,
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
+    pub fn new(albedo: Arc<dyn Texture>) -> Self {
         Self { albedo }
     }
 }
@@ -24,7 +33,8 @@ impl Material for Lambertian {
     fn scatter(&self, _: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let scatter_direction = rec.normal() + Vec3A::random_unit();
         let scattered = Ray::new(rec.point(), scatter_direction);
-        Some((self.albedo, scattered))
+        let attenuation = self.albedo.value(rec.u(), rec.v(), rec.point());
+        Some((attenuation, scattered))
     }
 }
 
@@ -98,4 +108,24 @@ fn schlick(cos: f32, ref_idx: f32) -> f32 {
     let mut r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
     r0 = r0 * r0;
     r0 + (1.0 - r0) * (1.0 - cos).powi(5)
+}
+
+pub struct DiffuseLight {
+    emit: Arc<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Arc<dyn Texture>) -> Self {
+        Self { emit }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _: &Ray, _: &HitRecord) -> Option<(Color, Ray)> {
+        None
+    }
+
+    fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
+        self.emit.value(u, v, p)
+    }
 }

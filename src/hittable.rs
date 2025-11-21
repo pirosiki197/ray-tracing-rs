@@ -10,15 +10,26 @@ pub struct HitRecord {
     p: Point3,
     normal: Vec3A,
     material: Arc<dyn Material>,
+    u: f32,
+    v: f32,
     front_face: bool,
 }
 
 impl HitRecord {
-    pub fn new(p: Point3, normal: Vec3A, material: Arc<dyn Material>, front_face: bool) -> Self {
+    pub fn new(
+        p: Point3,
+        normal: Vec3A,
+        material: Arc<dyn Material>,
+        u: f32,
+        v: f32,
+        front_face: bool,
+    ) -> Self {
         HitRecord {
             p,
             normal,
             material,
+            u,
+            v,
             front_face,
         }
     }
@@ -33,6 +44,14 @@ impl HitRecord {
 
     pub fn material(&self) -> Arc<dyn Material> {
         self.material.clone()
+    }
+
+    pub fn u(&self) -> f32 {
+        self.u
+    }
+
+    pub fn v(&self) -> f32 {
+        self.v
     }
 
     pub fn front_face(&self) -> bool {

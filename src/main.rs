@@ -8,9 +8,10 @@ use ray_tracing::{
     camera::Camera,
     color,
     hittable::{Geometry, HittableList},
-    material::{Dielectric, Lambertian, Metal},
+    material::{Dielectric, DiffuseLight, Lambertian, Metal},
     ray::Ray,
     sphere::Sphere,
+    texture::SolidTexture,
     vec::{Color, Point3, Vec3Ext},
 };
 use rayon::{
@@ -23,20 +24,22 @@ fn ray_color(ray: &Ray, world: &HittableList, depth: i32) -> Color {
         return Color::ZERO;
     }
 
-    if let Some((_, rec)) = world.hit(&ray, 0.001, f32::INFINITY) {
-        if let Some((attenuation, scattered)) = rec.material().scatter(&ray, &rec) {
-            return attenuation * ray_color(&scattered, world, depth - 1);
-        }
-    }
+    let Some((_, rec)) = world.hit(&ray, 0.001, f32::INFINITY) else {
+        return Color::ZERO;
+    };
 
-    let unit_direction = ray.direction().normalize();
-    let t = 0.5 * (unit_direction.y + 1.0);
-    (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+    let emitted = rec.material().emitted(rec.u(), rec.v(), rec.point());
+
+    if let Some((attenuation, scattered)) = rec.material().scatter(&ray, &rec) {
+        emitted + attenuation * ray_color(&scattered, world, depth - 1)
+    } else {
+        emitted
+    }
 }
 
 fn random_scene() -> HittableList {
     let mut world = HittableList::new();
-    let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    let ground_material = Arc::new(Lambertian::new(Arc::new(SolidTexture::new(0.5, 0.5, 0.5))));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -60,11 +63,11 @@ fn random_scene() -> HittableList {
             }
 
             if choose_mat < 0.7 {
-                let albedo = rng.random::<Color>() * rng.random::<Color>();
+                let texture: SolidTexture = (rng.random::<Color>() * rng.random::<Color>()).into();
                 spheres.push(Geometry::Sphere(Sphere::new(
                     center,
                     0.2,
-                    Arc::new(Lambertian::new(albedo)),
+                    Arc::new(Lambertian::new(Arc::new(texture))),
                 )));
             } else if choose_mat < 0.95 {
                 let albedo = Color::random_range(0.5..1.0);
@@ -92,7 +95,9 @@ fn random_scene() -> HittableList {
         1.0,
         material1,
     )));
-    let material2 = Arc::new(Lambertian::new(Color::new(0.25, 0.875, 0.8125)));
+    let material2 = Arc::new(Lambertian::new(Arc::new(SolidTexture::new(
+        0.25, 0.875, 0.8125,
+    ))));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
@@ -105,6 +110,19 @@ fn random_scene() -> HittableList {
         material3,
     )));
 
+    let sun_light = DiffuseLight::new(Arc::new(SolidTexture::new(10.0, 10.0, 10.0)));
+    let sun = Geometry::Sphere(Sphere::new(
+        Point3::new(100.0, 100.0, 100.0),
+        50.0,
+        Arc::new(sun_light),
+    ));
+
+    let sky_material = DiffuseLight::new(Arc::new(SolidTexture::new(0.9, 0.55, 0.0)));
+    let sky = Geometry::Sphere(Sphere::new(Point3::ZERO, 10000.0, Arc::new(sky_material)));
+
+    world.add(sun);
+    world.add(sky);
+
     world
 }
 
@@ -112,9 +130,9 @@ fn main() {
     let mut stdout = std::io::stdout();
 
     let aspect_ration = 16.0 / 9.0;
-    let image_width = 1280;
+    let image_width = 640;
     let image_height = (image_width as f32 / aspect_ration) as i32;
-    let samples_per_pixel = 2000;
+    let samples_per_pixel = 1000;
     let max_depth = 50;
 
     let lookfrom = Point3::new(13.0, 2.0, 6.0);

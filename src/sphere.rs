@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{f32, sync::Arc};
 
 use glam::Vec3A;
 
@@ -50,6 +50,15 @@ impl Sphere {
             self.center + Vec3A::new(self.radius, self.radius, self.radius),
         ))
     }
+
+    fn calculate_uv(p: Point3) -> (f32, f32) {
+        let pi = f32::consts::PI;
+        let phi = f32::atan2(p.z, p.x);
+        let theta = f32::asin(p.y);
+        let u = 1.0 - (phi + pi) / (2.0 * pi);
+        let v = (theta + pi / 2.0) / pi;
+        (u, v)
+    }
 }
 
 impl Sphere {
@@ -57,6 +66,7 @@ impl Sphere {
         let p = ray.at(t);
         let outward_normal = (p - self.center) / self.radius;
         let front_face = ray.direction().dot(outward_normal) < 0.0;
+        let (u, v) = Sphere::calculate_uv(p);
         HitRecord::new(
             p,
             if front_face {
@@ -65,6 +75,8 @@ impl Sphere {
                 -outward_normal
             },
             self.material.clone(),
+            u,
+            v,
             front_face,
         )
     }
