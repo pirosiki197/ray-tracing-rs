@@ -24,13 +24,13 @@ fn ray_color(ray: &Ray, world: &HittableList, depth: i32) -> Color {
         return Color::ZERO;
     }
 
-    let Some((_, rec)) = world.hit(&ray, 0.001, f32::INFINITY) else {
+    let Some((_, rec)) = world.hit(ray, 0.001, f32::INFINITY) else {
         return Color::ZERO;
     };
 
     let emitted = rec.material().emitted(rec.u(), rec.v(), rec.point());
 
-    if let Some((attenuation, scattered)) = rec.material().scatter(&ray, &rec) {
+    if let Some((attenuation, scattered)) = rec.material().scatter(ray, &rec) {
         emitted + attenuation * ray_color(&scattered, world, depth - 1)
     } else {
         emitted

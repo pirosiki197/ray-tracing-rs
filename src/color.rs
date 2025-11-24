@@ -14,5 +14,5 @@ pub fn write_color(w: &mut impl Write, mut pixel_color: Color, samples_per_pixel
     let g = 256.0 * sanitize(pixel_color.y);
     let b = 256.0 * sanitize(pixel_color.z);
 
-    write!(w, "{} {} {}\n", r as u8, g as u8, b as u8).unwrap();
+    writeln!(w, "{} {} {}", r as u8, g as u8, b as u8).unwrap();
 }

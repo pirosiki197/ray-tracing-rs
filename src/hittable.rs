@@ -59,6 +59,7 @@ impl HitRecord {
     }
 }
 
+#[derive(Default)]
 pub struct HittableList {
     objects: Vec<Geometry>,
 }
@@ -77,7 +78,7 @@ impl HittableList {
             self.objects
                 .iter()
                 .fold((t_max, None), |(closest_t, base_hit), obj| {
-                    if let Some((t, rec)) = obj.hit(&ray, t_min, closest_t) {
+                    if let Some((t, rec)) = obj.hit(ray, t_min, closest_t) {
                         (t, Some(rec))
                     } else {
                         (closest_t, base_hit)

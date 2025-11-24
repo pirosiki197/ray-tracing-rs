@@ -33,12 +33,12 @@ impl Sphere {
         let root = discriminant.sqrt();
         let temp = (-half_b - root) / a;
         if temp < t_max && temp > t_min {
-            return Some((temp, self.hit_record(&ray, temp)));
+            return Some((temp, self.hit_record(ray, temp)));
         }
 
         let temp = (-half_b + root) / a;
         if temp < t_max && temp > t_min {
-            return Some((temp, self.hit_record(&ray, temp)));
+            return Some((temp, self.hit_record(ray, temp)));
         }
 
         None

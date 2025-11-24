@@ -33,7 +33,7 @@ impl BVHBranch {
                 }
             }
             _ => {
-                objects.sort_by(|a, b| comparator(a, b));
+                objects.sort_by(comparator);
                 let mid = objects.len() / 2;
                 let first_half = objects.split_off(mid);
                 let second_half = objects;
