@@ -11,7 +11,7 @@ impl Ray {
     pub fn new(origin: Point3, direction: Vec3A) -> Self {
         Self {
             orig: origin,
-            dir: direction,
+            dir: direction.normalize(),
         }
     }
 

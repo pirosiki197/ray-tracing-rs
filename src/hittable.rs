@@ -3,7 +3,7 @@ use std::sync::Arc;
 use glam::Vec3A;
 
 use crate::{
-    aabb::AABB, bvh::BVHBranch, material::Material, ray::Ray, sphere::Sphere, vec::Point3,
+    aabb::AABB, bvh::BVHBranch, material::Material, rand, ray::Ray, sphere::Sphere, vec::Point3,
 };
 
 pub struct HitRecord {
@@ -106,9 +106,22 @@ impl HittableList {
 
         Some(res)
     }
+
+    fn pdf_value(&self, origin: Point3, v: Vec3A) -> f32 {
+        let weight = 1.0 / self.objects.len() as f32;
+        self.objects
+            .iter()
+            .map(|o| weight * o.pdf_value(origin, v))
+            .sum()
+    }
+
+    fn random(&self, origin: Point3) -> Vec3A {
+        self.objects[rand::random_range(0..self.objects.len())].random(origin)
+    }
 }
 
 pub enum Geometry {
+    List(HittableList),
     Sphere(Sphere),
     Branch(Box<BVHBranch>),
 }
@@ -116,6 +129,7 @@ pub enum Geometry {
 impl Geometry {
     pub fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<(f32, HitRecord)> {
         match self {
+            Geometry::List(l) => l.hit(ray, t_min, t_max),
             Geometry::Sphere(s) => s.hit(ray, t_min, t_max),
             Geometry::Branch(n) => n.hit(ray, t_min, t_max),
         }
@@ -123,8 +137,25 @@ impl Geometry {
 
     pub fn bounding_box(&self) -> Option<AABB> {
         match self {
+            Geometry::List(l) => l.bounding_box(),
             Geometry::Sphere(s) => s.bounding_box(),
             Geometry::Branch(n) => n.bounding_box(),
+        }
+    }
+
+    pub fn pdf_value(&self, origin: Point3, v: Vec3A) -> f32 {
+        match self {
+            Geometry::Sphere(s) => s.pdf_value(origin, v),
+            Geometry::List(l) => l.pdf_value(origin, v),
+            _ => 0.0,
+        }
+    }
+
+    pub fn random(&self, origin: Point3) -> Vec3A {
+        match self {
+            Geometry::List(l) => l.random(origin),
+            Geometry::Sphere(s) => s.random(origin),
+            _ => Vec3A::new(1.0, 0.0, 0.0),
         }
     }
 }

@@ -12,7 +12,6 @@ pub struct Camera {
 
     u: Vec3A,
     v: Vec3A,
-    w: Vec3A,
 }
 
 impl Camera {
@@ -47,7 +46,6 @@ impl Camera {
 
             u,
             v,
-            w,
         }
     }
 
