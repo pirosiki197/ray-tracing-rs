@@ -1,4 +1,4 @@
-use std::{f32, sync::Arc};
+use std::f32;
 
 use glam::Vec3A;
 
@@ -10,11 +10,11 @@ use crate::{
 pub struct Sphere {
     center: Point3,
     radius: f32,
-    material: Arc<dyn Material>,
+    material: Material,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f32, material: Arc<dyn Material>) -> Self {
+    pub fn new(center: Point3, radius: f32, material: Material) -> Self {
         Sphere {
             center,
             radius,

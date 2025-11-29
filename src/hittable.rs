@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use glam::Vec3A;
 
@@ -9,7 +8,7 @@ use crate::{
 pub struct HitRecord {
     p: Point3,
     normal: Vec3A,
-    material: Arc<dyn Material>,
+    material: Material,
     u: f32,
     v: f32,
     front_face: bool,
@@ -19,7 +18,7 @@ impl HitRecord {
     pub fn new(
         p: Point3,
         normal: Vec3A,
-        material: Arc<dyn Material>,
+        material: Material,
         u: f32,
         v: f32,
         front_face: bool,
@@ -42,8 +41,8 @@ impl HitRecord {
         self.normal
     }
 
-    pub fn material(&self) -> Arc<dyn Material> {
-        self.material.clone()
+    pub fn material(&self) -> &Material {
+        &self.material
     }
 
     pub fn u(&self) -> f32 {

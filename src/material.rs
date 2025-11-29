@@ -11,20 +11,39 @@ use crate::{
     vec::{Color, Point3, Vec3Ext},
 };
 
-pub trait Material: Send + Sync {
+#[derive(Clone)]
+pub enum Material {
+    Lambertian(Lambertian),
+    Metal(Metal),
+    Dielectric(Dielectric),
+    DiffuseLight(DiffuseLight),
+}
+
+impl Material {
     /// scatter calculates (color, ray_out, pdf).
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord>;
-    fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
-        _ = u;
-        _ = v;
-        _ = p;
-        Color::ZERO
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+        match self {
+            Material::Lambertian(m) => m.scatter(r_in, rec),
+            Material::Metal(m) => m.scatter(r_in, rec),
+            Material::Dielectric(m) => m.scatter(r_in, rec),
+            Material::DiffuseLight(m) => m.scatter(r_in, rec),
+        }
     }
-    fn scattering_pdf(&self, r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f32 {
-        _ = r_in;
-        _ = rec;
-        _ = scattered;
-        0.0
+    pub fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
+        match self {
+            Material::Lambertian(m) => m.emitted(u, v, p),
+            Material::Metal(m) => m.emitted(u, v, p),
+            Material::Dielectric(m) => m.emitted(u, v, p),
+            Material::DiffuseLight(m) => m.emitted(u, v, p),
+        }
+    }
+    pub fn scattering_pdf(&self, r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f32 {
+        match self {
+            Material::Lambertian(m) => m.scattering_pdf(r_in, rec, scattered),
+            Material::Metal(m) => m.scattering_pdf(r_in, rec, scattered),
+            Material::Dielectric(m) => m.scattering_pdf(r_in, rec, scattered),
+            Material::DiffuseLight(m) => m.scattering_pdf(r_in, rec, scattered),
+        }
     }
 }
 
@@ -38,6 +57,7 @@ pub struct ScatterRecord {
     pub attenuation: Color,
 }
 
+#[derive(Clone)]
 pub struct Lambertian {
     albedo: Arc<dyn Texture>,
 }
@@ -46,10 +66,8 @@ impl Lambertian {
     pub fn new(albedo: Arc<dyn Texture>) -> Self {
         Self { albedo }
     }
-}
 
-impl Material for Lambertian {
-    fn scatter(&self, _: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+    pub fn scatter(&self, _: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         let attenuation = self.albedo.value(rec.u(), rec.v(), rec.point());
         let pdf = Arc::new(CosinePDF::new(rec.normal()));
         Some(ScatterRecord {
@@ -57,7 +75,8 @@ impl Material for Lambertian {
             event: ScatterEvent::Diffuse(pdf),
         })
     }
-    fn scattering_pdf(&self, _: &Ray, rec: &HitRecord, scattered: &Ray) -> f32 {
+
+    pub fn scattering_pdf(&self, _: &Ray, rec: &HitRecord, scattered: &Ray) -> f32 {
         let cosine = rec.normal().dot(scattered.direction().normalize());
         if cosine < 0.0 {
             0.0
@@ -65,8 +84,13 @@ impl Material for Lambertian {
             cosine / f32::consts::PI
         }
     }
+
+    pub fn emitted(&self, _u: f32, _v: f32, _p: Point3) -> Color {
+        Color::ZERO
+    }
 }
 
+#[derive(Clone, Copy)]
 pub struct Metal {
     albedo: Color,
     fuzz: f32,
@@ -79,10 +103,8 @@ impl Metal {
             fuzz: fuzz.min(1.0),
         }
     }
-}
 
-impl Material for Metal {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         let reflected = r_in.direction().reflect(rec.normal());
         let specular_ray = Ray::new(
             rec.point(),
@@ -93,8 +115,17 @@ impl Material for Metal {
             attenuation: self.albedo,
         })
     }
+
+    pub fn emitted(&self, _u: f32, _v: f32, _p: Point3) -> Color {
+        Color::ZERO
+    }
+
+    pub fn scattering_pdf(&self, _r_in: &Ray, _rec: &HitRecord, _scattered: &Ray) -> f32 {
+        0.0
+    }
 }
 
+#[derive(Clone, Copy)]
 pub struct Dielectric {
     ref_idx: f32,
 }
@@ -103,10 +134,8 @@ impl Dielectric {
     pub fn new(ref_idx: f32) -> Self {
         Self { ref_idx }
     }
-}
 
-impl Material for Dielectric {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+    pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
         let attenuation = Color::new(1.0, 1.0, 1.0);
         let etai_over_etat = if rec.front_face() {
             1.0 / self.ref_idx
@@ -143,6 +172,14 @@ impl Material for Dielectric {
             attenuation,
         })
     }
+
+    pub fn emitted(&self, _u: f32, _v: f32, _p: Point3) -> Color {
+        Color::ZERO
+    }
+
+    pub fn scattering_pdf(&self, _r_in: &Ray, _rec: &HitRecord, _scattered: &Ray) -> f32 {
+        0.0
+    }
 }
 
 fn schlick(cos: f32, ref_idx: f32) -> f32 {
@@ -151,6 +188,7 @@ fn schlick(cos: f32, ref_idx: f32) -> f32 {
     r0 + (1.0 - r0) * (1.0 - cos).powi(5)
 }
 
+#[derive(Clone)]
 pub struct DiffuseLight {
     emit: Arc<dyn Texture>,
 }
@@ -159,14 +197,16 @@ impl DiffuseLight {
     pub fn new(emit: Arc<dyn Texture>) -> Self {
         Self { emit }
     }
-}
 
-impl Material for DiffuseLight {
-    fn scatter(&self, _: &Ray, _: &HitRecord) -> Option<ScatterRecord> {
+    pub fn scatter(&self, _: &Ray, _: &HitRecord) -> Option<ScatterRecord> {
         None
     }
 
-    fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
+    pub fn emitted(&self, u: f32, v: f32, p: Point3) -> Color {
         self.emit.value(u, v, p)
+    }
+
+    pub fn scattering_pdf(&self, _r_in: &Ray, _rec: &HitRecord, _scattered: &Ray) -> f32 {
+        0.0
     }
 }

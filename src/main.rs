@@ -7,7 +7,7 @@ use ray_tracing::{
     camera::Camera,
     color,
     hittable::{Geometry, HittableList},
-    material::{Dielectric, DiffuseLight, Lambertian, Metal, ScatterEvent},
+    material::{Dielectric, DiffuseLight, Lambertian, Material, Metal, ScatterEvent},
     pdf::{HittablePDF, MixturePDF, PDF},
     rand,
     ray::Ray,
@@ -61,7 +61,9 @@ fn ray_color(ray: &Ray, world: &HittableList, lights: Arc<Geometry>, depth: i32)
 
 fn random_scene() -> (HittableList, HittableList) {
     let mut world = HittableList::new();
-    let ground_material = Arc::new(Lambertian::new(Arc::new(SolidTexture::new(0.5, 0.5, 0.5))));
+    let ground_material = Material::Lambertian(Lambertian::new(Arc::new(SolidTexture::new(
+        0.5, 0.5, 0.5,
+    ))));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -89,7 +91,7 @@ fn random_scene() -> (HittableList, HittableList) {
                 spheres.push(Geometry::Sphere(Sphere::new(
                     center,
                     0.2,
-                    Arc::new(Lambertian::new(Arc::new(texture))),
+                    Material::Lambertian(Lambertian::new(Arc::new(texture))),
                 )));
             } else if choose_mat < 0.95 {
                 let albedo = Color::random_range(0.5..1.0);
@@ -97,13 +99,13 @@ fn random_scene() -> (HittableList, HittableList) {
                 spheres.push(Geometry::Sphere(Sphere::new(
                     center,
                     0.2,
-                    Arc::new(Metal::new(albedo, fuzz)),
+                    Material::Metal(Metal::new(albedo, fuzz)),
                 )));
             } else {
                 spheres.push(Geometry::Sphere(Sphere::new(
                     center,
                     0.2,
-                    Arc::new(Dielectric::new(1.5)),
+                    Material::Dielectric(Dielectric::new(1.5)),
                 )))
             }
         }
@@ -111,13 +113,13 @@ fn random_scene() -> (HittableList, HittableList) {
 
     world.add(BVHBranch::build(spheres));
 
-    let material1 = Arc::new(Dielectric::new(1.5));
+    let material1 = Material::Dielectric(Dielectric::new(1.5));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(0.0, 1.0, 0.0),
         1.0,
         material1,
     )));
-    let material2 = Arc::new(Lambertian::new(Arc::new(SolidTexture::new(
+    let material2 = Material::Lambertian(Lambertian::new(Arc::new(SolidTexture::new(
         0.25, 0.875, 0.8125,
     ))));
     world.add(Geometry::Sphere(Sphere::new(
@@ -125,7 +127,7 @@ fn random_scene() -> (HittableList, HittableList) {
         1.0,
         material2,
     )));
-    let material3 = Arc::new(Metal::new(Color::new(0.75, 0.75, 0.75), 0.0));
+    let material3 = Material::Metal(Metal::new(Color::new(0.75, 0.75, 0.75), 0.0));
     world.add(Geometry::Sphere(Sphere::new(
         Point3::new(4.0, 1.0, 0.0),
         1.0,
@@ -133,7 +135,11 @@ fn random_scene() -> (HittableList, HittableList) {
     )));
 
     let sun_light = DiffuseLight::new(Arc::new(SolidTexture::new(10.0, 10.0, 10.0)));
-    let sun = Sphere::new(Point3::new(100.0, 100.0, 100.0), 50.0, Arc::new(sun_light));
+    let sun = Sphere::new(
+        Point3::new(100.0, 100.0, 100.0),
+        50.0,
+        Material::DiffuseLight(sun_light),
+    );
 
     world.add(Geometry::Sphere(sun.clone()));
 
